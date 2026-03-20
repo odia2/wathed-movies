@@ -31,9 +31,60 @@
             position: sticky;
             top: 0;
             z-index: 100;
+            gap: 20px;
         }
 
         .logo { font-size: 24px; font-weight: bold; color: var(--accent); }
+
+        .search-container {
+            flex: 1;
+            max-width: 500px;
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 10px 15px;
+            background: #1e293b;
+            border: 1px solid #334155;
+            color: white;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+            z-index: 1000;
+        }
+
+        .search-result-item {
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            border-bottom: 1px solid #334155;
+        }
+
+        .search-result-item:hover {
+            background: #334155;
+        }
+
+        .search-result-item img {
+            width: 40px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
 
         .user-profile {
             display: flex;
@@ -142,6 +193,22 @@
 
         .comment-box.show { display: block; }
 
+        .delete-btn {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(220, 38, 38, 0.9);
+            border: none;
+            color: white;
+            cursor: pointer;
+            border-radius: 4px;
+            padding: 5px 10px;
+            font-size: 12px;
+            display: none;
+        }
+
+        .movie-card.admin .delete-btn { display: block; }
+
         .modal-overlay {
             display: none;
             position: fixed;
@@ -233,10 +300,57 @@
             width: 100%;
             font-weight: bold;
         }
+
+        /* Add Movie Modal */
+        .add-modal-content {
+            background: var(--card-bg);
+            max-width: 500px;
+            margin: 100px auto;
+            border-radius: 16px;
+            padding: 30px;
+        }
+
+        .add-modal-content h2 { margin-bottom: 20px; }
+        .add-modal-content label { display: block; margin-bottom: 5px; color: #94a3b8; }
+        .add-modal-content textarea {
+            width: 100%;
+            padding: 10px;
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: white;
+            border-radius: 6px;
+            resize: vertical;
+            min-height: 100px;
+        }
+        .rating-select {
+            width: 100%;
+            padding: 10px;
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: white;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .btn-group button { flex: 1; }
+        .btn-cancel {
+            background: #334155;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
 
+    <!-- Login Modal -->
     <div id="login-modal">
         <div class="login-box">
             <h2>Вхід</h2>
@@ -247,28 +361,37 @@
         </div>
     </div>
 
+    <!-- Header -->
     <header>
         <div class="logo">MY MOVIES</div>
+        <div class="search-container">
+            <input type="text" class="search-input" id="search-input" placeholder="Пошук фільмів (TMDB)...">
+            <div class="search-results" id="search-results"></div>
+        </div>
         <div class="user-profile" onclick="logout()">
             <span id="user-email">Гість</span>
-            <div class="avatar">U</div>
+            <div class="avatar" id="user-avatar">U</div>
         </div>
     </header>
 
+    <!-- Stats -->
     <div class="stats-bar">
         <div class="stat-item">Всього: <span class="stat-value" id="stat-total">0</span></div>
         <div class="stat-item">Середня оцінка: <span class="stat-value" id="stat-avg">0</span></div>
         <div class="stat-item">Улюблений жанр: <span class="stat-value" id="stat-genre">-</span></div>
     </div>
 
+    <!-- Libraries -->
     <div class="libraries">
         <button class="lib-btn active">Всі фільми</button>
         <button class="lib-btn">Хочу подивитись</button>
-        <button class="lib-btn">Улюблені </button>
+        <button class="lib-btn">Улюблені</button>
     </div>
 
+    <!-- Movie Grid -->
     <div class="movie-grid" id="movie-grid"></div>
 
+    <!-- Movie Detail Modal -->
     <div class="modal-overlay" id="movie-modal">
         <button class="modal-close" onclick="closeModal()">×</button>
         <div class="modal-content">
@@ -288,10 +411,50 @@
         </div>
     </div>
 
+    <!-- Add Movie Modal -->
+    <div class="modal-overlay" id="add-modal">
+        <div class="add-modal-content">
+            <h2>Додати фільм</h2>
+            <input type="hidden" id="add-tmdb-id">
+            <input type="hidden" id="add-poster">
+            <input type="hidden" id="add-year">
+            <input type="hidden" id="add-genre">
+            
+            <label>Назва:</label>
+            <input type="text" id="add-title" readonly>
+            
+            <label>Твоя оцінка:</label>
+            <select class="rating-select" id="add-rating">
+                <option value="10/10">10/10</option>
+                <option value="9/10">9/10</option>
+                <option value="8/10">8/10</option>
+                <option value="7/10">7/10</option>
+                <option value="6/10">6/10</option>
+                <option value="5/10">5/10</option>
+                <option value="4/10">4/10</option>
+                <option value="3/10">3/10</option>
+                <option value="2/10">2/10</option>
+                <option value="1/10">1/10</option>
+                <option value="11/10">11/10 🔥</option>
+                <option value="12/10">12/10 🔥🔥</option>
+                <option value="13/10">13/10 🔥🔥🔥</option>
+            </select>
+            
+            <label>Коментар:</label>
+            <textarea id="add-comment" placeholder="Твій коментар (необов'язково)"></textarea>
+            
+            <div class="btn-group">
+                <button class="btn-cancel" onclick="closeAddModal()">Скасувати</button>
+                <button class="primary" onclick="saveMovie()">Зберегти</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase + App -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
-        import { getFirestore } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCgkpCnK2QjMCE6HLwPBzJrnsaYRDr3YBc",
@@ -308,15 +471,23 @@
         const db = getFirestore(app);
 
         const TMDB_KEY = "e58d0bd8f6cdc8a3a80354d83e044fe4";
+        const ADMIN_EMAIL = "bogdan17261726@gmail.com";
 
         let allMovies = [];
+        let isAdmin = false;
+        let currentUser = null;
 
         onAuthStateChanged(auth, (user) => {
             if (user) {
+                currentUser = user;
+                isAdmin = user.email === ADMIN_EMAIL;
                 document.getElementById('login-modal').style.display = 'none';
                 document.getElementById('user-email').innerText = user.email;
+                document.getElementById('user-avatar').innerText = user.email[0].toUpperCase();
                 loadMovies();
             } else {
+                currentUser = null;
+                isAdmin = false;
                 document.getElementById('login-modal').style.display = 'flex';
                 document.getElementById('movie-grid').innerHTML = '';
             }
@@ -338,26 +509,11 @@
             const grid = document.getElementById('movie-grid');
             grid.innerHTML = '<div style="color:#94a3b8">Завантаження...</div>';
 
-            allMovies = [
-                {
-                    tmdb_id: 278,
-                    title: "Втеча з Шоушенка",
-                    year: "1994",
-                    poster: "https://image.tmdb.org/t/p/w500/q6y0Go1tsGEsmtFryDOJo3dEmqu.jpg",
-                    rating: "10/10",
-                    comment: "Найкращий фільм ever",
-                    genre: "Драма"
-                },
-                {
-                    tmdb_id: 680,
-                    title: "Термінатор 2",
-                    year: "1991",
-                    poster: "https://image.tmdb.org/t/p/w500/5M0j0B18abtBI5gi2RhfjjurTqb.jpg",
-                    rating: "10/10",
-                    comment: "Шварц - легенда",
-                    genre: "Бойовик"
-                }
-            ];
+            allMovies = [];
+            const querySnapshot = await getDocs(collection(db, "movies"));
+            querySnapshot.forEach((doc) => {
+                allMovies.push({ id: doc.id, ...doc.data() });
+            });
 
             renderMovies(allMovies);
             updateStats();
@@ -369,30 +525,120 @@
 
             movies.forEach(movie => {
                 const card = document.createElement('div');
-                card.className = 'movie-card';
+                card.className = 'movie-card' + (isAdmin ? ' admin' : '');
                 card.onclick = () => openModal(movie);
 
                 card.innerHTML = `
-                    <button class="comment-toggle" onclick="event.stopPropagation(); this.nextElementSibling.classList.toggle('show')">‹</button>
+                    <button class="delete-btn" onclick="event.stopPropagation(); deleteMovie('${movie.id}')">🗑 Видалити</button>
+                    <button class="comment-toggle" onclick="event.stopPropagation(); this.nextElementSibling.nextElementSibling.classList.toggle('show')">‹</button>
                     <img src="${movie.poster}" class="poster" alt="${movie.title}">
                     <div class="card-info">
                         <div class="title">${movie.title}</div>
                         <div class="year">${movie.year}</div>
                         <div class="rating">⭐ ${movie.rating}</div>
                     </div>
-                    <div class="comment-box">${movie.comment}</div>
+                    <div class="comment-box">${movie.comment || ''}</div>
                 `;
 
                 grid.appendChild(card);
             });
         }
 
+        // Search
+        const searchInput = document.getElementById('search-input');
+        const searchResults = document.getElementById('search-results');
+        let searchTimeout = null;
+
+        searchInput.addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            const query = e.target.value.trim();
+            
+            if (query.length < 2) {
+                searchResults.style.display = 'none';
+                return;
+            }
+
+            searchTimeout = setTimeout(async () => {
+                const res = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${encodeURIComponent(query)}&language=ru-RU`);
+                const data = await res.json();
+                
+                if (data.results.length > 0) {
+                    searchResults.innerHTML = '';
+                    data.results.slice(0, 5).forEach(movie => {
+                        const item = document.createElement('div');
+                        item.className = 'search-result-item';
+                        item.innerHTML = `
+                            <img src="${movie.poster_path ? 'https://image.tmdb.org/t/p/w92' + movie.poster_path : 'https://via.placeholder.com/40x60'}" alt="">
+                            <div>
+                                <div style="font-weight:bold">${movie.title}</div>
+                                <div style="font-size:12px;color:#94a3b8">${movie.release_date?.substring(0,4) || 'N/A'}</div>
+                            </div>
+                        `;
+                        item.onclick = () => openAddModal(movie);
+                        searchResults.appendChild(item);
+                    });
+                    searchResults.style.display = 'block';
+                } else {
+                    searchResults.style.display = 'none';
+                }
+            }, 300);
+        });
+
+        // Add Movie Modal
+        window.openAddModal = (movie) => {
+            document.getElementById('add-tmdb-id').value = movie.id;
+            document.getElementById('add-title').value = movie.title;
+            document.getElementById('add-poster').value = movie.poster_path ? 'https://image.tmdb.org/t/p/w500' + movie.poster_path : '';
+            document.getElementById('add-year').value = movie.release_date?.substring(0,4) || 'N/A';
+            document.getElementById('add-genre').value = '';
+            document.getElementById('add-comment').value = '';
+            document.getElementById('add-modal').style.display = 'block';
+            searchResults.style.display = 'none';
+            searchInput.value = '';
+        };
+
+        window.closeAddModal = () => {
+            document.getElementById('add-modal').style.display = 'none';
+        };
+
+        window.saveMovie = async () => {
+            const tmdb_id = document.getElementById('add-tmdb-id').value;
+            const title = document.getElementById('add-title').value;
+            const poster = document.getElementById('add-poster').value;
+            const year = document.getElementById('add-year').value;
+            const rating = document.getElementById('add-rating').value;
+            const comment = document.getElementById('add-comment').value;
+
+            await addDoc(collection(db, "movies"), {
+                tmdb_id,
+                title,
+                poster,
+                year,
+                rating,
+                comment,
+                genre: 'Не вказано',
+                addedBy: currentUser.email,
+                createdAt: new Date().toISOString()
+            });
+
+            closeAddModal();
+            loadMovies();
+            alert('Фільм додано!');
+        };
+
+        window.deleteMovie = async (id) => {
+            if (!confirm('Видалити цей фільм?')) return;
+            await deleteDoc(doc(db, "movies", id));
+            loadMovies();
+        };
+
+        // Modal
         async function openModal(movie) {
             const modal = document.getElementById('movie-modal');
             
             document.getElementById('modal-title').innerText = movie.title;
             document.getElementById('modal-poster').src = movie.poster;
-            document.getElementById('modal-meta').innerText = `${movie.year} • ${movie.genre}`;
+            document.getElementById('modal-meta').innerText = `${movie.year} • ${movie.genre || 'Не вказано'}`;
             document.getElementById('modal-rating').innerText = `Твоя оцінка: ${movie.rating}`;
             document.getElementById('modal-comment').innerText = movie.comment || "Немає коментаря";
 
@@ -425,6 +671,17 @@
 
         document.getElementById('movie-modal').addEventListener('click', (e) => {
             if (e.target.id === 'movie-modal') closeModal();
+        });
+
+        document.getElementById('add-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'add-modal') closeAddModal();
+        });
+
+        // Close search results when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.search-container')) {
+                searchResults.style.display = 'none';
+            }
         });
     </script>
 </body>
