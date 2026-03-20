@@ -182,7 +182,7 @@
             font-size: 12px;
         }
 
-        .comment-toggle {
+        .menu-btn {
             position: absolute;
             top: 10px;
             right: 10px;
@@ -191,9 +191,39 @@
             color: white;
             cursor: pointer;
             border-radius: 4px;
-            padding: 2px 8px;
-            font-size: 12px;
+            padding: 5px 8px;
+            font-size: 14px;
+            z-index: 10;
         }
+
+        .menu-dropdown {
+            position: absolute;
+            top: 40px;
+            right: 10px;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            min-width: 180px;
+            display: none;
+            z-index: 100;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+
+        .menu-dropdown.show { display: block; }
+
+        .menu-item {
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            border-bottom: 1px solid #334155;
+            font-size: 13px;
+        }
+
+        .menu-item:last-child { border-bottom: none; }
+        .menu-item:hover { background: #334155; }
+        .menu-item input[type="checkbox"] { accent-color: var(--accent); }
 
         .comment-box {
             display: none;
@@ -392,11 +422,11 @@
     </div>
 
     <div class="libraries">
-        <button class="lib-btn active" onclick="filterMovies('all')">Всі</button>
+        <button class="lib-btn active" onclick="filterMovies('all')">📁 Всі</button>
+        <button class="lib-btn" onclick="filterMovies('watchlist')">📝 Хочу подивитись</button>
+        <button class="lib-btn" onclick="filterMovies('favorites')">⭐ Улюблені</button>
         <button class="lib-btn" onclick="filterMovies('movie')">🎬 Фільми</button>
         <button class="lib-btn" onclick="filterMovies('tv')">📺 Серіали</button>
-        <button class="lib-btn" onclick="filterMovies('favorites')">⭐ Улюблені</button>
-        <button class="lib-btn" onclick="filterMovies('watchlist')">📝 Хочу подивитись</button>
     </div>
 
     <div class="movie-grid" id="movie-grid"></div>
@@ -451,6 +481,16 @@
                 <option value="13/10">13/10 🔥🔥🔥</option>
             </select>
             
+            <label>Бібліотеки:</label>
+            <div style="display:flex;gap:15px;margin-bottom:15px;">
+                <label style="display:flex;align-items:center;gap:5px;cursor:pointer;">
+                    <input type="checkbox" id="lib-watchlist" checked> Хочу подивитись
+                </label>
+                <label style="display:flex;align-items:center;gap:5px;cursor:pointer;">
+                    <input type="checkbox" id="lib-favorites"> Улюблені
+                </label>
+            </div>
+            
             <label>Коментар:</label>
             <textarea id="add-comment" placeholder="Твій коментар (необов'язково)"></textarea>
             
@@ -464,7 +504,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCgkpCnK2QjMCE6HLwPBzJrnsaYRDr3YBc",
@@ -486,6 +526,7 @@
         let allMovies = [];
         let isAdmin = false;
         let currentUser = null;
+        let currentFilter = 'all';
 
         onAuthStateChanged(auth, (user) => {
             if (user) {
@@ -529,22 +570,43 @@
             updateStats();
         }
 
+        function isInLibrary(movie, lib) {
+            if (lib === 'all') return true;
+            if (lib === 'movie') return !movie.type || movie.type === 'movie';
+            if (lib === 'tv') return movie.type === 'tv';
+            if (!movie.libraries) return false;
+            return movie.libraries.includes(lib);
+        }
+
         function renderMovies(movies) {
             const grid = document.getElementById('movie-grid');
             grid.innerHTML = '';
 
-            movies.forEach(movie => {
+            const filtered = currentFilter === 'all' ? movies : movies.filter(m => isInLibrary(m, currentFilter));
+
+            filtered.forEach(movie => {
                 const card = document.createElement('div');
                 card.className = 'movie-card' + (isAdmin ? ' admin' : '');
                 card.onclick = () => openModal(movie);
 
-                // ✅ ВИПРАВЛЕНО: якщо type немає — це фільм
                 const typeBadge = (!movie.type || movie.type === 'movie') ? '🎬 Фільм' : '📺 Серіал';
+                const uniqueId = `menu-${movie.id}`;
 
                 card.innerHTML = `
                     <button class="delete-btn" onclick="event.stopPropagation(); deleteMovie('${movie.id}')">🗑</button>
                     <span class="type-badge">${typeBadge}</span>
-                    <button class="comment-toggle" onclick="event.stopPropagation(); this.nextElementSibling.nextElementSibling.classList.toggle('show')">‹</button>
+                    <button class="menu-btn" onclick="event.stopPropagation(); toggleMenu('${uniqueId}')">⋮</button>
+                    <div class="menu-dropdown" id="${uniqueId}">
+                        <div class="menu-item">
+                            <input type="checkbox" ${movie.libraries?.includes('watchlist') ? 'checked' : ''} onchange="event.stopPropagation(); toggleLibrary('${movie.id}', 'watchlist', this.checked)">
+                            📝 Хочу подивитись
+                        </div>
+                        <div class="menu-item">
+                            <input type="checkbox" ${movie.libraries?.includes('favorites') ? 'checked' : ''} onchange="event.stopPropagation(); toggleLibrary('${movie.id}', 'favorites', this.checked)">
+                            ⭐ Улюблені
+                        </div>
+                    </div>
+                    <button class="comment-toggle" onclick="event.stopPropagation(); this.nextElementSibling.nextElementSibling.nextElementSibling.classList.toggle('show')">‹</button>
                     <img src="${movie.poster}" class="poster" alt="${movie.title}">
                     <div class="card-info">
                         <div class="title">${movie.title}</div>
@@ -558,28 +620,41 @@
             });
         }
 
-        // ✅ ВИПРАВЛЕНО: фільтр тепер працює для старих фільмів
+        window.toggleMenu = (menuId) => {
+            const allMenus = document.querySelectorAll('.menu-dropdown');
+            allMenus.forEach(m => {
+                if (m.id !== menuId) m.classList.remove('show');
+            });
+            document.getElementById(menuId).classList.toggle('show');
+        };
+
+        window.toggleLibrary = async (movieId, library, checked) => {
+            try {
+                const movie = allMovies.find(m => m.id === movieId);
+                let libraries = movie.libraries || [];
+                
+                if (checked) {
+                    if (!libraries.includes(library)) libraries.push(library);
+                } else {
+                    libraries = libraries.filter(l => l !== library);
+                }
+
+                await updateDoc(doc(db, "movies", movieId), { libraries });
+                
+                // Оновлюємо локально
+                movie.libraries = libraries;
+                renderMovies(allMovies);
+            } catch (e) {
+                alert("Помилка: " + e.message);
+            }
+        };
+
         window.filterMovies = (filter) => {
+            currentFilter = filter;
             const buttons = document.querySelectorAll('.lib-btn');
             buttons.forEach(btn => btn.classList.remove('active'));
             event.target.classList.add('active');
-
-            let filtered = allMovies;
-
-            if (filter === 'movie') {
-                filtered = allMovies.filter(m => !m.type || m.type === 'movie');
-            } else if (filter === 'tv') {
-                filtered = allMovies.filter(m => m.type === 'tv');
-            } else if (filter === 'favorites') {
-                filtered = allMovies.filter(m => {
-                    const num = parseFloat(m.rating);
-                    return num >= 10;
-                });
-            } else if (filter === 'watchlist') {
-                filtered = allMovies.filter(m => m.comment && m.comment.length > 0);
-            }
-
-            renderMovies(filtered);
+            renderMovies(allMovies);
         };
 
         const searchInput = document.getElementById('search-input');
@@ -643,6 +718,8 @@
             document.getElementById('add-type-display').value = item.type === 'tv' ? '📺 Серіал' : '🎬 Фільм';
             document.getElementById('add-poster').value = item.poster_path ? 'https://image.tmdb.org/t/p/w500' + item.poster_path : '';
             document.getElementById('add-year').value = item[dateField]?.substring(0,4) || 'N/A';
+            document.getElementById('lib-watchlist').checked = true;
+            document.getElementById('lib-favorites').checked = false;
             document.getElementById('add-comment').value = '';
             document.getElementById('add-modal').style.display = 'block';
             searchResults.style.display = 'none';
@@ -662,6 +739,10 @@
                 const year = document.getElementById('add-year').value;
                 const rating = document.getElementById('add-rating').value;
                 const comment = document.getElementById('add-comment').value;
+                
+                const libraries = ['all'];
+                if (document.getElementById('lib-watchlist').checked) libraries.push('watchlist');
+                if (document.getElementById('lib-favorites').checked) libraries.push('favorites');
 
                 await addDoc(collection(db, "movies"), {
                     tmdb_id,
@@ -671,6 +752,7 @@
                     year,
                     rating,
                     comment,
+                    libraries,
                     genre: 'Не вказано',
                     addedBy: currentUser.email,
                     createdAt: new Date().toISOString()
@@ -698,7 +780,7 @@
             document.getElementById('modal-poster').src = movie.poster;
             
             const typeText = (!movie.type || movie.type === 'movie') ? '🎬 Фільм' : '📺 Серіал';
-            document.getElementById('modal-meta').innerText = `${typeText} • ${movie.year} • ${movie.genre || 'Не вказано'}`;
+            document.getElementById('modal-meta').innerText = `${typeText} • ${movie.year}`;
             document.getElementById('modal-rating').innerText = `Твоя оцінка: ${movie.rating}`;
             document.getElementById('modal-comment').innerText = movie.comment || "Немає коментаря";
 
@@ -718,7 +800,6 @@
             document.getElementById('movie-modal').style.display = 'none';
         };
 
-        // ✅ ВИПРАВЛЕНО: статистика тепер правильна
         function updateStats() {
             const total = allMovies.length;
             const movies = allMovies.filter(m => !m.type || m.type === 'movie').length;
@@ -744,8 +825,9 @@
         });
 
         document.addEventListener('click', (e) => {
-            if (!e.target.closest('.search-container')) {
+            if (!e.target.closest('.search-container') && !e.target.closest('.menu-btn') && !e.target.closest('.menu-dropdown')) {
                 searchResults.style.display = 'none';
+                document.querySelectorAll('.menu-dropdown').forEach(m => m.classList.remove('show'));
             }
         });
     </script>
