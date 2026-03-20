@@ -362,7 +362,6 @@
 </head>
 <body>
 
-    <!-- Login Modal -->
     <div id="login-modal">
         <div class="login-box">
             <h2>Вхід</h2>
@@ -373,7 +372,6 @@
         </div>
     </div>
 
-    <!-- Header -->
     <header>
         <div class="logo">MY MOVIES</div>
         <div class="search-container">
@@ -386,7 +384,6 @@
         </div>
     </header>
 
-    <!-- Stats -->
     <div class="stats-bar">
         <div class="stat-item">Всього: <span class="stat-value" id="stat-total">0</span></div>
         <div class="stat-item">Фільми: <span class="stat-value" id="stat-movies">0</span></div>
@@ -394,7 +391,6 @@
         <div class="stat-item">Середня оцінка: <span class="stat-value" id="stat-avg">0</span></div>
     </div>
 
-    <!-- Libraries -->
     <div class="libraries">
         <button class="lib-btn active" onclick="filterMovies('all')">Всі</button>
         <button class="lib-btn" onclick="filterMovies('movie')">🎬 Фільми</button>
@@ -403,10 +399,8 @@
         <button class="lib-btn" onclick="filterMovies('watchlist')">📝 Хочу подивитись</button>
     </div>
 
-    <!-- Movie Grid -->
     <div class="movie-grid" id="movie-grid"></div>
 
-    <!-- Movie Detail Modal -->
     <div class="modal-overlay" id="movie-modal">
         <button class="modal-close" onclick="closeModal()">×</button>
         <div class="modal-content">
@@ -426,7 +420,6 @@
         </div>
     </div>
 
-    <!-- Add Movie Modal -->
     <div class="modal-overlay" id="add-modal">
         <div class="add-modal-content">
             <h2>Додати</h2>
@@ -468,7 +461,6 @@
         </div>
     </div>
 
-    <!-- Firebase + App -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
@@ -546,7 +538,8 @@
                 card.className = 'movie-card' + (isAdmin ? ' admin' : '');
                 card.onclick = () => openModal(movie);
 
-                const typeBadge = movie.type === 'tv' ? '📺 Серіал' : '🎬 Фільм';
+                // ✅ ВИПРАВЛЕНО: якщо type немає — це фільм
+                const typeBadge = (!movie.type || movie.type === 'movie') ? '🎬 Фільм' : '📺 Серіал';
 
                 card.innerHTML = `
                     <button class="delete-btn" onclick="event.stopPropagation(); deleteMovie('${movie.id}')">🗑</button>
@@ -565,7 +558,7 @@
             });
         }
 
-        // Фільтрація
+        // ✅ ВИПРАВЛЕНО: фільтр тепер працює для старих фільмів
         window.filterMovies = (filter) => {
             const buttons = document.querySelectorAll('.lib-btn');
             buttons.forEach(btn => btn.classList.remove('active'));
@@ -574,7 +567,7 @@
             let filtered = allMovies;
 
             if (filter === 'movie') {
-                filtered = allMovies.filter(m => m.type === 'movie');
+                filtered = allMovies.filter(m => !m.type || m.type === 'movie');
             } else if (filter === 'tv') {
                 filtered = allMovies.filter(m => m.type === 'tv');
             } else if (filter === 'favorites') {
@@ -589,7 +582,6 @@
             renderMovies(filtered);
         };
 
-        // Search (фільми + серіали)
         const searchInput = document.getElementById('search-input');
         const searchResults = document.getElementById('search-results');
         let searchTimeout = null;
@@ -604,7 +596,6 @@
             }
 
             searchTimeout = setTimeout(async () => {
-                // Шукаємо і фільми, і серіали
                 const [movieRes, tvRes] = await Promise.all([
                     fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${encodeURIComponent(query)}&language=ru-RU`),
                     fetch(`https://api.themoviedb.org/3/search/tv?api_key=${TMDB_KEY}&query=${encodeURIComponent(query)}&language=ru-RU`)
@@ -613,7 +604,6 @@
                 const movieData = await movieRes.json();
                 const tvData = await tvRes.json();
 
-                // Об'єднуємо результати
                 const allResults = [
                     ...movieData.results.map(m => ({ ...m, type: 'movie' })),
                     ...tvData.results.map(t => ({ ...t, type: 'tv' }))
@@ -664,8 +654,6 @@
         };
 
         window.saveMovie = async () => {
-            console.log("Збереження почалося...");
-            
             try {
                 const tmdb_id = document.getElementById('add-tmdb-id').value;
                 const type = document.getElementById('add-type').value;
@@ -675,7 +663,7 @@
                 const rating = document.getElementById('add-rating').value;
                 const comment = document.getElementById('add-comment').value;
 
-                const docRef = await addDoc(collection(db, "movies"), {
+                await addDoc(collection(db, "movies"), {
                     tmdb_id,
                     type,
                     title,
@@ -687,8 +675,6 @@
                     addedBy: currentUser.email,
                     createdAt: new Date().toISOString()
                 });
-
-                console.log("Додано з ID:", docRef.id);
 
                 closeAddModal();
                 loadMovies();
@@ -711,13 +697,13 @@
             document.getElementById('modal-title').innerText = movie.title;
             document.getElementById('modal-poster').src = movie.poster;
             
-            const typeText = movie.type === 'tv' ? '📺 Серіал' : '🎬 Фільм';
+            const typeText = (!movie.type || movie.type === 'movie') ? '🎬 Фільм' : '📺 Серіал';
             document.getElementById('modal-meta').innerText = `${typeText} • ${movie.year} • ${movie.genre || 'Не вказано'}`;
             document.getElementById('modal-rating').innerText = `Твоя оцінка: ${movie.rating}`;
             document.getElementById('modal-comment').innerText = movie.comment || "Немає коментаря";
 
             try {
-                const endpoint = movie.type === 'tv' ? 'tv' : 'movie';
+                const endpoint = (!movie.type || movie.type === 'movie') ? 'movie' : 'tv';
                 const res = await fetch(`https://api.themoviedb.org/3/${endpoint}/${movie.tmdb_id}?api_key=${TMDB_KEY}&language=ru-RU`);
                 const data = await res.json();
                 document.getElementById('modal-overview').innerText = data.overview || "Опис відсутній";
@@ -732,9 +718,10 @@
             document.getElementById('movie-modal').style.display = 'none';
         };
 
+        // ✅ ВИПРАВЛЕНО: статистика тепер правильна
         function updateStats() {
             const total = allMovies.length;
-            const movies = allMovies.filter(m => m.type === 'movie').length;
+            const movies = allMovies.filter(m => !m.type || m.type === 'movie').length;
             const series = allMovies.filter(m => m.type === 'tv').length;
             
             document.getElementById('stat-total').innerText = total;
