@@ -11,6 +11,7 @@
             --text-main: #f8fafc;
             --accent: #8b5cf6;
             --accent-hover: #7c3aed;
+            --watched: #22c55e;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -135,6 +136,9 @@
         }
 
         .movie-card:hover { transform: translateY(-5px); }
+        .movie-card.watched { opacity: 0.7; }
+        .movie-card.watched .poster { filter: grayscale(50%); }
+        
         .poster { width: 100%; height: 300px; object-fit: cover; background: #0f172a; }
         .card-info { padding: 15px; }
         .title { font-size: 16px; font-weight: bold; margin-bottom: 5px; }
@@ -147,6 +151,41 @@
             color: white; padding: 3px 8px;
             border-radius: 4px; font-size: 12px;
         }
+
+        .watched-badge {
+            position: absolute;
+            top: 10px;
+            left: 50px;
+            background: rgba(34, 197, 94, 0.9);
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            display: none;
+        }
+
+        .movie-card.watched .watched-badge { display: block; }
+
+        .watched-btn {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(34, 197, 94, 0.9);
+            border: none;
+            color: white;
+            cursor: pointer;
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 12px;
+            font-weight: bold;
+            z-index: 20;
+            display: none;
+            transition: 0.3s;
+        }
+
+        .watched-btn:hover { background: var(--watched); transform: scale(1.05); }
+        .movie-card.admin .watched-btn { display: block; }
+        .movie-card.watched .watched-btn { background: rgba(148, 163, 184, 0.9); }
 
         .menu-btn {
             position: absolute; top: 10px; right: 10px;
@@ -273,6 +312,23 @@
 
         .trailer-btn:hover { background: #b91c1c; }
 
+        .watched-modal-btn {
+            background: var(--watched);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .watched-modal-btn:hover { background: #16a34a; }
+        .watched-modal-btn.watched { background: #64748b; }
+
         .user-comment-section {
             padding: 20px 30px; border-top: 1px solid #334155;
         }
@@ -392,12 +448,14 @@
         <div class="stat-item">Всього: <span class="stat-value" id="stat-total">0</span></div>
         <div class="stat-item">Фільми: <span class="stat-value" id="stat-movies">0</span></div>
         <div class="stat-item">Серіали: <span class="stat-value" id="stat-series">0</span></div>
+        <div class="stat-item">Подивився: <span class="stat-value" id="stat-watched" style="color:var(--watched)">0</span></div>
         <div class="stat-item">Середня оцінка: <span class="stat-value" id="stat-avg">0</span></div>
     </div>
 
     <div class="controls-bar">
         <div class="libraries">
             <button class="lib-btn active" onclick="filterMovies('all')">📁 Всі</button>
+            <button class="lib-btn" onclick="filterMovies('watched')">✅ Подивився</button>
             <button class="lib-btn" onclick="filterMovies('watchlist')">📝 Хочу подивитись</button>
             <button class="lib-btn" onclick="filterMovies('favorites')">⭐ Улюблені</button>
             <button class="lib-btn" onclick="filterMovies('movie')">🎬 Фільми</button>
@@ -426,6 +484,7 @@
                     <p class="modal-overview" id="modal-overview"></p>
                     <p class="modal-rating" id="modal-rating"></p>
                     
+                    <button class="watched-modal-btn" id="modal-watched-btn" onclick="toggleWatchedModal()">✅ Подивився</button>
                     <button class="trailer-btn" onclick="showTrailer()">▶️ Трейлер</button>
                     
                     <div class="watch-providers" id="watch-providers" style="display:none;">
@@ -478,6 +537,13 @@
                 <option value="12/10">12/10 🔥🔥</option>
                 <option value="13/10">13/10 🔥🔥🔥</option>
             </select>
+            
+            <label>Статус:</label>
+            <div style="display:flex;gap:15px;margin-bottom:15px;">
+                <label style="display:flex;align-items:center;gap:5px;cursor:pointer;">
+                    <input type="checkbox" id="add-watched"> ✅ Вже подивився
+                </label>
+            </div>
             
             <label>Бібліотеки:</label>
             <div style="display:flex;gap:15px;margin-bottom:15px;">
@@ -572,6 +638,7 @@
 
         function isInLibrary(movie, lib) {
             if (lib === 'all') return true;
+            if (lib === 'watched') return movie.watched === true;
             if (lib === 'movie') return !movie.type || movie.type === 'movie';
             if (lib === 'tv') return movie.type === 'tv';
             if (!movie.libraries) return false;
@@ -617,7 +684,7 @@
 
             filtered.forEach(movie => {
                 const card = document.createElement('div');
-                card.className = 'movie-card' + (isAdmin ? ' admin' : '');
+                card.className = 'movie-card' + (isAdmin ? ' admin' : '') + (movie.watched ? ' watched' : '');
                 card.onclick = () => openModal(movie);
 
                 const typeBadge = (!movie.type || movie.type === 'movie') ? '🎬 Фільм' : '📺 Серіал';
@@ -625,8 +692,10 @@
 
                 card.innerHTML = `
                     <button class="delete-btn" onclick="event.stopPropagation(); deleteMovie('${movie.id}')">🗑</button>
+                    <span class="watched-badge">✅</span>
                     <span class="type-badge">${typeBadge}</span>
                     <button class="menu-btn" onclick="event.stopPropagation(); toggleMenu('${uniqueId}')">⋮</button>
+                    <button class="watched-btn" onclick="event.stopPropagation(); toggleWatched('${movie.id}')">${movie.watched ? '❌ Не дивився' : '✅ Подивився'}</button>
                     <div class="menu-dropdown" id="${uniqueId}">
                         <div class="menu-item">
                             <input type="checkbox" checked disabled> 📁 Всі (завжди)
@@ -640,7 +709,7 @@
                             ⭐ Улюблені
                         </div>
                     </div>
-                    <button class="comment-toggle" onclick="event.stopPropagation(); this.nextElementSibling.nextElementSibling.nextElementSibling.classList.toggle('show')">‹</button>
+                    <button class="comment-toggle" onclick="event.stopPropagation(); this.nextElementSibling.nextElementSibling.nextElementSibling.nextElementSibling.classList.toggle('show')">‹</button>
                     <img src="${movie.poster}" class="poster" alt="${movie.title}">
                     <div class="card-info">
                         <div class="title">${movie.title}</div>
@@ -679,6 +748,33 @@
             } catch (e) {
                 alert("Помилка: " + e.message);
             }
+        };
+
+        window.toggleWatched = async (movieId) => {
+            try {
+                const movie = allMovies.find(m => m.id === movieId);
+                const newWatched = !movie.watched;
+                
+                await updateDoc(doc(db, "movies", movieId), { watched: newWatched });
+                movie.watched = newWatched;
+                
+                // Якщо відмітив як подивився - знімаємо з "Хочу подивитись"
+                if (newWatched && movie.libraries) {
+                    movie.libraries = movie.libraries.filter(l => l !== 'watchlist');
+                    await updateDoc(doc(db, "movies", movieId), { libraries: movie.libraries });
+                }
+                
+                renderMovies();
+                updateStats();
+            } catch (e) {
+                alert("Помилка: " + e.message);
+            }
+        };
+
+        window.toggleWatchedModal = async () => {
+            if (!currentMovie) return;
+            await toggleWatched(currentMovie.id);
+            openModal(currentMovie); // Оновити модалку
         };
 
         window.filterMovies = (filter) => {
@@ -751,6 +847,7 @@
             document.getElementById('add-type-display').value = item.type === 'tv' ? '📺 Серіал' : '🎬 Фільм';
             document.getElementById('add-poster').value = item.poster_path ? 'https://image.tmdb.org/t/p/w500' + item.poster_path : '';
             document.getElementById('add-year').value = item[dateField]?.substring(0,4) || 'N/A';
+            document.getElementById('add-watched').checked = false;
             document.getElementById('lib-watchlist').checked = true;
             document.getElementById('lib-favorites').checked = false;
             document.getElementById('add-comment').value = '';
@@ -775,6 +872,7 @@
                     year: document.getElementById('add-year').value,
                     rating: document.getElementById('add-rating').value,
                     comment: document.getElementById('add-comment').value,
+                    watched: document.getElementById('add-watched').checked,
                     libraries,
                     genre: 'Не вказано',
                     addedBy: currentUser.email,
@@ -805,6 +903,17 @@
             document.getElementById('modal-rating').innerText = `Твоя оцінка: ${movie.rating || 'N/A'}`;
             document.getElementById('modal-comment').innerText = movie.comment || "Немає коментаря";
 
+            // Кнопка "Подивився"
+            const watchedBtn = document.getElementById('modal-watched-btn');
+            if (movie.watched) {
+                watchedBtn.innerHTML = '✅ Вже подивився';
+                watchedBtn.classList.add('watched');
+            } else {
+                watchedBtn.innerHTML = '✅ Подивився';
+                watchedBtn.classList.remove('watched');
+            }
+            watchedBtn.style.display = isAdmin ? 'flex' : 'none';
+
             // Завантажуємо деталі з TMDB (трейлери + де дивитись)
             try {
                 const endpoint = (!movie.type || movie.type === 'movie') ? 'movie' : 'tv';
@@ -830,12 +939,9 @@
                 const uaProviders = providers.results?.UA;
                 if (uaProviders) {
                     const streamServices = uaProviders.flatrate || [];
-                    const rentServices = uaProviders.rent || [];
-                    const buyServices = uaProviders.buy || [];
 
-                    if (streamServices.length > 0 || rentServices.length > 0 || buyServices.length > 0) {
+                    if (streamServices.length > 0) {
                         providersContainer.style.display = 'block';
-
                         streamServices.forEach(p => {
                             providerList.innerHTML += `
                                 <a href="https://www.themoviedb.org/${endpoint}/${movie.tmdb_id}" target="_blank" class="provider-link">
@@ -844,12 +950,9 @@
                                 </a>
                             `;
                         });
-
-                        if (streamServices.length === 0) {
-                            providerList.innerHTML = '<p style="color:#94a3b8;font-size:13px;">Немає на стрімінгах в Україні 😞</p>';
-                        }
                     } else {
-                        providersContainer.style.display = 'none';
+                        providerList.innerHTML = '<p style="color:#94a3b8;font-size:13px;">Немає на стрімінгах в Україні 😞</p>';
+                        providersContainer.style.display = 'block';
                     }
                 } else {
                     providersContainer.style.display = 'none';
@@ -884,9 +987,11 @@
         };
 
         function updateStats() {
+            const watched = allMovies.filter(m => m.watched === true).length;
             document.getElementById('stat-total').innerText = allMovies.length;
             document.getElementById('stat-movies').innerText = allMovies.filter(m => !m.type || m.type === 'movie').length;
             document.getElementById('stat-series').innerText = allMovies.filter(m => m.type === 'tv').length;
+            document.getElementById('stat-watched').innerText = watched;
             const avg = allMovies.reduce((sum, m) => sum + (getRatingNum(m.rating) > 0 ? getRatingNum(m.rating) : 0), 0) / (allMovies.length || 1);
             document.getElementById('stat-avg').innerText = avg.toFixed(1);
         }
