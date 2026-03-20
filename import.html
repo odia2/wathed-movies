@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Імпорт фільмів</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f8fafc;
+            --accent: #8b5cf6;
+        }
+        body {
+            background: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Segoe UI', sans-serif;
+            padding: 40px;
+        }
+        .container { max-width: 800px; margin: 0 auto; }
+        h1 { color: var(--accent); margin-bottom: 20px; }
+        textarea {
+            width: 100%;
+            height: 400px;
+            background: #1e293b;
+            border: 1px solid #334155;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            resize: vertical;
+        }
+        .btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .progress {
+            margin-top: 20px;
+            padding: 15px;
+            background: #1e293b;
+            border-radius: 8px;
+            display: none;
+        }
+        .progress-bar {
+            height: 20px;
+            background: #334155;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+        .progress-fill {
+            height: 100%;
+            background: var(--accent);
+            width: 0%;
+            transition: width 0.3s;
+        }
+        .log {
+            margin-top: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-size: 12px;
+            color: #94a3b8;
+        }
+        .log-item { padding: 5px 0; border-bottom: 1px solid #334155; }
+        .log-success { color: #4ade80; }
+        .log-error { color: #f87171; }
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: var(--accent);
+            text-decoration: none;
+        }
+        .back-link:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📥 Імпорт фільмів з Word</h1>
+        
+        <p style="color:#94a3b8;margin-bottom:10px;">
+            Встав весь список з Word (кожен фільм з нового рядка):
+        </p>
+        
+        <textarea id="movie-list" placeholder="Бесславные Ублюдки
+1+1
+Железный человек
+Опенгеймер
+Джанго Освобождённый
+..."></textarea>
+        
+        <button class="btn" id="import-btn" onclick="startImport()">🚀 Почати імпорт</button>
+        
+        <div class="progress" id="progress">
+            <div>Оброблено: <span id="processed">0</span> / <span id="total">0</span></div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill"></div>
+            </div>
+            <div class="log" id="log"></div>
+        </div>
+        
+        <a href="index.html" class="back-link">← Повернутись на сайт</a>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+        import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCgkpCnK2QjMCE6HLwPBzJrnsaYRDr3YBc",
+            authDomain: "wathed-movies.firebaseapp.com",
+            projectId: "wathed-movies",
+            storageBucket: "wathed-movies.firebasestorage.app",
+            messagingSenderId: "54824906865",
+            appId: "1:54824906865:web:58f419a6824aae41f6abd0",
+            measurementId: "G-K153BLFVSW"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const TMDB_KEY = "e58d0bd8f6cdc8a3a80354d83e044fe4";
+        const ADMIN_EMAIL = "bogdan17261726@gmail.com";
+
+        // Перевірка авторизації
+        onAuthStateChanged(auth, (user) => {
+            if (!user || user.email !== ADMIN_EMAIL) {
+                alert('Тільки адмін може імпортувати!');
+                window.location.href = 'index.html';
+            }
+        });
+
+        window.startImport = async () => {
+            const text = document.getElementById('movie-list').value.trim();
+            if (!text) {
+                alert('Встав список фільмів!');
+                return;
+            }
+
+            const movies = text.split('\n').filter(line => line.trim()).map(line => {
+                // Очищаємо назву (видаляємо оцінки, дужки тощо)
+                let title = line.split('\t')[0].trim();
+                title = title.replace(/\s*\(\d+\)/g, '').trim(); // Видаляє (1), (2), etc.
+                return title;
+            });
+
+            document.getElementById('import-btn').disabled = true;
+            document.getElementById('progress').style.display = 'block';
+            document.getElementById('total').innerText = movies.length;
+
+            let processed = 0;
+            let success = 0;
+            let errors = 0;
+
+            for (const title of movies) {
+                try {
+                    // Пошук у TMDB
+                    const res = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${encodeURIComponent(title)}&language=ru-RU`);
+                    const data = await res.json();
+
+                    if (data.results && data.results.length > 0) {
+                        const movie = data.results[0];
+                        
+                        await addDoc(collection(db, "movies"), {
+                            tmdb_id: movie.id,
+                            type: 'movie',
+                            title: title,
+                            poster: movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : '',
+                            year: movie.release_date?.substring(0, 4) || 'N/A',
+                            rating: 'N/A',
+                            comment: '',
+                            libraries: ['all'],
+                            genre: 'Імпортовано',
+                            addedBy: ADMIN_EMAIL,
+                            createdAt: new Date().toISOString()
+                        });
+
+                        log(`✅ ${title}`, 'success');
+                        success++;
+                    } else {
+                        // Спробуємо як серіал
+                        const tvRes = await fetch(`https://api.themoviedb.org/3/search/tv?api_key=${TMDB_KEY}&query=${encodeURIComponent(title)}&language=ru-RU`);
+                        const tvData = await tvRes.json();
+
+                        if (tvData.results && tvData.results.length > 0) {
+                            const show = tvData.results[0];
+                            await addDoc(collection(db, "movies"), {
+                                tmdb_id: show.id,
+                                type: 'tv',
+                                title: title,
+                                poster: show.poster_path ? `https://image.tmdb.org/t/p/w500${show.poster_path}` : '',
+                                year: show.first_air_date?.substring(0, 4) || 'N/A',
+                                rating: 'N/A',
+                                comment: '',
+                                libraries: ['all'],
+                                genre: 'Імпортовано',
+                                addedBy: ADMIN_EMAIL,
+                                createdAt: new Date().toISOString()
+                            });
+
+                            log(`✅ ${title} (Серіал)`, 'success');
+                            success++;
+                        } else {
+                            log(`❌ ${title} - не знайдено`, 'error');
+                            errors++;
+                        }
+                    }
+                } catch (e) {
+                    log(`❌ ${title} - ${e.message}`, 'error');
+                    errors++;
+                }
+
+                processed++;
+                document.getElementById('processed').innerText = processed;
+                document.getElementById('progress-fill').style.width = `${(processed / movies.length) * 100}%`;
+                
+                // Затримка щоб не заблокували API
+                await new Promise(r => setTimeout(r, 300));
+            }
+
+            document.getElementById('import-btn').disabled = false;
+            log(`\n🎉 ГОТОВО! Успішно: ${success}, Помилки: ${errors}`, 'success');
+            alert(`Імпорт завершено!\nУспішно: ${success}\nНе знайдено: ${errors}`);
+        };
+
+        function log(message, type = '') {
+            const logEl = document.getElementById('log');
+            const item = document.createElement('div');
+            item.className = `log-item log-${type}`;
+            item.innerText = message;
+            logEl.appendChild(item);
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+    </script>
+</body>
+</html>
