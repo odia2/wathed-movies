@@ -111,6 +111,7 @@
             background: #1e293b;
             margin: 20px 40px;
             border-radius: 12px;
+            flex-wrap: wrap;
         }
 
         .stat-item { font-size: 14px; color: #94a3b8; }
@@ -121,6 +122,7 @@
             gap: 10px;
             padding: 0 40px;
             margin-bottom: 20px;
+            flex-wrap: wrap;
         }
 
         .lib-btn {
@@ -168,6 +170,17 @@
         .title { font-size: 16px; font-weight: bold; margin-bottom: 5px; }
         .year { font-size: 12px; color: #94a3b8; }
         .rating { color: #fbbf24; margin-top: 5px; }
+
+        .type-badge {
+            position: absolute;
+            top: 10px;
+            right: 50px;
+            background: rgba(139, 92, 246, 0.9);
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
 
         .comment-toggle {
             position: absolute;
@@ -364,7 +377,7 @@
     <header>
         <div class="logo">MY MOVIES</div>
         <div class="search-container">
-            <input type="text" class="search-input" id="search-input" placeholder="Пошук фільмів (TMDB)...">
+            <input type="text" class="search-input" id="search-input" placeholder="Пошук (фільми та серіали)...">
             <div class="search-results" id="search-results"></div>
         </div>
         <div class="user-profile" onclick="logout()">
@@ -376,15 +389,18 @@
     <!-- Stats -->
     <div class="stats-bar">
         <div class="stat-item">Всього: <span class="stat-value" id="stat-total">0</span></div>
+        <div class="stat-item">Фільми: <span class="stat-value" id="stat-movies">0</span></div>
+        <div class="stat-item">Серіали: <span class="stat-value" id="stat-series">0</span></div>
         <div class="stat-item">Середня оцінка: <span class="stat-value" id="stat-avg">0</span></div>
-        <div class="stat-item">Улюблений жанр: <span class="stat-value" id="stat-genre">-</span></div>
     </div>
 
     <!-- Libraries -->
     <div class="libraries">
-        <button class="lib-btn active" onclick="filterMovies('all')">Всі фільми</button>
-        <button class="lib-btn" onclick="filterMovies('watchlist')">Хочу подивитись</button>
-        <button class="lib-btn" onclick="filterMovies('favorites')">Улюблені</button>
+        <button class="lib-btn active" onclick="filterMovies('all')">Всі</button>
+        <button class="lib-btn" onclick="filterMovies('movie')">🎬 Фільми</button>
+        <button class="lib-btn" onclick="filterMovies('tv')">📺 Серіали</button>
+        <button class="lib-btn" onclick="filterMovies('favorites')">⭐ Улюблені</button>
+        <button class="lib-btn" onclick="filterMovies('watchlist')">📝 Хочу подивитись</button>
     </div>
 
     <!-- Movie Grid -->
@@ -413,14 +429,17 @@
     <!-- Add Movie Modal -->
     <div class="modal-overlay" id="add-modal">
         <div class="add-modal-content">
-            <h2>Додати фільм</h2>
+            <h2>Додати</h2>
             <input type="hidden" id="add-tmdb-id">
+            <input type="hidden" id="add-type">
             <input type="hidden" id="add-poster">
             <input type="hidden" id="add-year">
-            <input type="hidden" id="add-genre">
             
             <label>Назва:</label>
             <input type="text" id="add-title" readonly>
+            
+            <label>Тип:</label>
+            <input type="text" id="add-type-display" readonly>
             
             <label>Твоя оцінка:</label>
             <select class="rating-select" id="add-rating">
@@ -527,8 +546,11 @@
                 card.className = 'movie-card' + (isAdmin ? ' admin' : '');
                 card.onclick = () => openModal(movie);
 
+                const typeBadge = movie.type === 'tv' ? '📺 Серіал' : '🎬 Фільм';
+
                 card.innerHTML = `
-                    <button class="delete-btn" onclick="event.stopPropagation(); deleteMovie('${movie.id}')">🗑 Видалити</button>
+                    <button class="delete-btn" onclick="event.stopPropagation(); deleteMovie('${movie.id}')">🗑</button>
+                    <span class="type-badge">${typeBadge}</span>
                     <button class="comment-toggle" onclick="event.stopPropagation(); this.nextElementSibling.nextElementSibling.classList.toggle('show')">‹</button>
                     <img src="${movie.poster}" class="poster" alt="${movie.title}">
                     <div class="card-info">
@@ -543,7 +565,7 @@
             });
         }
 
-        // Фільтрація бібліотек
+        // Фільтрація
         window.filterMovies = (filter) => {
             const buttons = document.querySelectorAll('.lib-btn');
             buttons.forEach(btn => btn.classList.remove('active'));
@@ -551,7 +573,11 @@
 
             let filtered = allMovies;
 
-            if (filter === 'favorites') {
+            if (filter === 'movie') {
+                filtered = allMovies.filter(m => m.type === 'movie');
+            } else if (filter === 'tv') {
+                filtered = allMovies.filter(m => m.type === 'tv');
+            } else if (filter === 'favorites') {
                 filtered = allMovies.filter(m => {
                     const num = parseFloat(m.rating);
                     return num >= 10;
@@ -563,7 +589,7 @@
             renderMovies(filtered);
         };
 
-        // Search
+        // Search (фільми + серіали)
         const searchInput = document.getElementById('search-input');
         const searchResults = document.getElementById('search-results');
         let searchTimeout = null;
@@ -578,23 +604,37 @@
             }
 
             searchTimeout = setTimeout(async () => {
-                const res = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${encodeURIComponent(query)}&language=ru-RU`);
-                const data = await res.json();
-                
-                if (data.results.length > 0) {
+                // Шукаємо і фільми, і серіали
+                const [movieRes, tvRes] = await Promise.all([
+                    fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${encodeURIComponent(query)}&language=ru-RU`),
+                    fetch(`https://api.themoviedb.org/3/search/tv?api_key=${TMDB_KEY}&query=${encodeURIComponent(query)}&language=ru-RU`)
+                ]);
+
+                const movieData = await movieRes.json();
+                const tvData = await tvRes.json();
+
+                // Об'єднуємо результати
+                const allResults = [
+                    ...movieData.results.map(m => ({ ...m, type: 'movie' })),
+                    ...tvData.results.map(t => ({ ...t, type: 'tv' }))
+                ].sort((a, b) => b.popularity - a.popularity).slice(0, 8);
+
+                if (allResults.length > 0) {
                     searchResults.innerHTML = '';
-                    data.results.slice(0, 5).forEach(movie => {
-                        const item = document.createElement('div');
-                        item.className = 'search-result-item';
-                        item.innerHTML = `
-                            <img src="${movie.poster_path ? 'https://image.tmdb.org/t/p/w92' + movie.poster_path : 'https://via.placeholder.com/40x60'}" alt="">
+                    allResults.forEach(item => {
+                        const typeIcon = item.type === 'tv' ? '📺' : '🎬';
+                        const dateField = item.type === 'tv' ? 'first_air_date' : 'release_date';
+                        const itemEl = document.createElement('div');
+                        itemEl.className = 'search-result-item';
+                        itemEl.innerHTML = `
+                            <img src="${item.poster_path ? 'https://image.tmdb.org/t/p/w92' + item.poster_path : 'https://via.placeholder.com/40x60'}" alt="">
                             <div>
-                                <div style="font-weight:bold">${movie.title}</div>
-                                <div style="font-size:12px;color:#94a3b8">${movie.release_date?.substring(0,4) || 'N/A'}</div>
+                                <div style="font-weight:bold">${typeIcon} ${item.title || item.name}</div>
+                                <div style="font-size:12px;color:#94a3b8">${item[dateField]?.substring(0,4) || 'N/A'}</div>
                             </div>
                         `;
-                        item.onclick = () => openAddModal(movie);
-                        searchResults.appendChild(item);
+                        itemEl.onclick = () => openAddModal(item);
+                        searchResults.appendChild(itemEl);
                     });
                     searchResults.style.display = 'block';
                 } else {
@@ -603,12 +643,16 @@
             }, 300);
         });
 
-        window.openAddModal = (movie) => {
-            document.getElementById('add-tmdb-id').value = movie.id;
-            document.getElementById('add-title').value = movie.title;
-            document.getElementById('add-poster').value = movie.poster_path ? 'https://image.tmdb.org/t/p/w500' + movie.poster_path : '';
-            document.getElementById('add-year').value = movie.release_date?.substring(0,4) || 'N/A';
-            document.getElementById('add-genre').value = '';
+        window.openAddModal = (item) => {
+            const dateField = item.type === 'tv' ? 'first_air_date' : 'release_date';
+            const titleField = item.type === 'tv' ? 'name' : 'title';
+            
+            document.getElementById('add-tmdb-id').value = item.id;
+            document.getElementById('add-type').value = item.type;
+            document.getElementById('add-title').value = item[titleField];
+            document.getElementById('add-type-display').value = item.type === 'tv' ? '📺 Серіал' : '🎬 Фільм';
+            document.getElementById('add-poster').value = item.poster_path ? 'https://image.tmdb.org/t/p/w500' + item.poster_path : '';
+            document.getElementById('add-year').value = item[dateField]?.substring(0,4) || 'N/A';
             document.getElementById('add-comment').value = '';
             document.getElementById('add-modal').style.display = 'block';
             searchResults.style.display = 'none';
@@ -624,6 +668,7 @@
             
             try {
                 const tmdb_id = document.getElementById('add-tmdb-id').value;
+                const type = document.getElementById('add-type').value;
                 const title = document.getElementById('add-title').value;
                 const poster = document.getElementById('add-poster').value;
                 const year = document.getElementById('add-year').value;
@@ -632,6 +677,7 @@
 
                 const docRef = await addDoc(collection(db, "movies"), {
                     tmdb_id,
+                    type,
                     title,
                     poster,
                     year,
@@ -642,19 +688,19 @@
                     createdAt: new Date().toISOString()
                 });
 
-                console.log("Фільм додано з ID:", docRef.id);
+                console.log("Додано з ID:", docRef.id);
 
                 closeAddModal();
                 loadMovies();
-                alert('Фільм додано!');
+                alert('Додано!');
             } catch (e) {
-                console.error("Помилка збереження:", e);
+                console.error("Помилка:", e);
                 alert("Помилка: " + e.message);
             }
         };
 
         window.deleteMovie = async (id) => {
-            if (!confirm('Видалити цей фільм?')) return;
+            if (!confirm('Видалити?')) return;
             await deleteDoc(doc(db, "movies", id));
             loadMovies();
         };
@@ -664,12 +710,15 @@
             
             document.getElementById('modal-title').innerText = movie.title;
             document.getElementById('modal-poster').src = movie.poster;
-            document.getElementById('modal-meta').innerText = `${movie.year} • ${movie.genre || 'Не вказано'}`;
+            
+            const typeText = movie.type === 'tv' ? '📺 Серіал' : '🎬 Фільм';
+            document.getElementById('modal-meta').innerText = `${typeText} • ${movie.year} • ${movie.genre || 'Не вказано'}`;
             document.getElementById('modal-rating').innerText = `Твоя оцінка: ${movie.rating}`;
             document.getElementById('modal-comment').innerText = movie.comment || "Немає коментаря";
 
             try {
-                const res = await fetch(`https://api.themoviedb.org/3/movie/${movie.tmdb_id}?api_key=${TMDB_KEY}&language=ru-RU`);
+                const endpoint = movie.type === 'tv' ? 'tv' : 'movie';
+                const res = await fetch(`https://api.themoviedb.org/3/${endpoint}/${movie.tmdb_id}?api_key=${TMDB_KEY}&language=ru-RU`);
                 const data = await res.json();
                 document.getElementById('modal-overview').innerText = data.overview || "Опис відсутній";
             } catch (e) {
@@ -684,15 +733,19 @@
         };
 
         function updateStats() {
-            document.getElementById('stat-total').innerText = allMovies.length;
+            const total = allMovies.length;
+            const movies = allMovies.filter(m => m.type === 'movie').length;
+            const series = allMovies.filter(m => m.type === 'tv').length;
+            
+            document.getElementById('stat-total').innerText = total;
+            document.getElementById('stat-movies').innerText = movies;
+            document.getElementById('stat-series').innerText = series;
             
             const avg = allMovies.reduce((sum, m) => {
                 const num = parseFloat(m.rating);
                 return sum + (isNaN(num) ? 0 : num);
-            }, 0) / allMovies.length;
+            }, 0) / (total || 1);
             document.getElementById('stat-avg').innerText = avg.toFixed(1);
-
-            document.getElementById('stat-genre').innerText = "Бойовик";
         }
 
         document.getElementById('movie-modal').addEventListener('click', (e) => {
