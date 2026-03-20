@@ -301,7 +301,6 @@
             font-weight: bold;
         }
 
-        /* Add Movie Modal */
         .add-modal-content {
             background: var(--card-bg);
             max-width: 500px;
@@ -383,9 +382,9 @@
 
     <!-- Libraries -->
     <div class="libraries">
-        <button class="lib-btn active">Всі фільми</button>
-        <button class="lib-btn">Хочу подивитись</button>
-        <button class="lib-btn">Улюблені</button>
+        <button class="lib-btn active" onclick="filterMovies('all')">Всі фільми</button>
+        <button class="lib-btn" onclick="filterMovies('watchlist')">Хочу подивитись</button>
+        <button class="lib-btn" onclick="filterMovies('favorites')">Улюблені</button>
     </div>
 
     <!-- Movie Grid -->
@@ -544,6 +543,26 @@
             });
         }
 
+        // Фільтрація бібліотек
+        window.filterMovies = (filter) => {
+            const buttons = document.querySelectorAll('.lib-btn');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            let filtered = allMovies;
+
+            if (filter === 'favorites') {
+                filtered = allMovies.filter(m => {
+                    const num = parseFloat(m.rating);
+                    return num >= 10;
+                });
+            } else if (filter === 'watchlist') {
+                filtered = allMovies.filter(m => m.comment && m.comment.length > 0);
+            }
+
+            renderMovies(filtered);
+        };
+
         // Search
         const searchInput = document.getElementById('search-input');
         const searchResults = document.getElementById('search-results');
@@ -584,7 +603,6 @@
             }, 300);
         });
 
-        // Add Movie Modal
         window.openAddModal = (movie) => {
             document.getElementById('add-tmdb-id').value = movie.id;
             document.getElementById('add-title').value = movie.title;
@@ -602,28 +620,37 @@
         };
 
         window.saveMovie = async () => {
-            const tmdb_id = document.getElementById('add-tmdb-id').value;
-            const title = document.getElementById('add-title').value;
-            const poster = document.getElementById('add-poster').value;
-            const year = document.getElementById('add-year').value;
-            const rating = document.getElementById('add-rating').value;
-            const comment = document.getElementById('add-comment').value;
+            console.log("Збереження почалося...");
+            
+            try {
+                const tmdb_id = document.getElementById('add-tmdb-id').value;
+                const title = document.getElementById('add-title').value;
+                const poster = document.getElementById('add-poster').value;
+                const year = document.getElementById('add-year').value;
+                const rating = document.getElementById('add-rating').value;
+                const comment = document.getElementById('add-comment').value;
 
-            await addDoc(collection(db, "movies"), {
-                tmdb_id,
-                title,
-                poster,
-                year,
-                rating,
-                comment,
-                genre: 'Не вказано',
-                addedBy: currentUser.email,
-                createdAt: new Date().toISOString()
-            });
+                const docRef = await addDoc(collection(db, "movies"), {
+                    tmdb_id,
+                    title,
+                    poster,
+                    year,
+                    rating,
+                    comment,
+                    genre: 'Не вказано',
+                    addedBy: currentUser.email,
+                    createdAt: new Date().toISOString()
+                });
 
-            closeAddModal();
-            loadMovies();
-            alert('Фільм додано!');
+                console.log("Фільм додано з ID:", docRef.id);
+
+                closeAddModal();
+                loadMovies();
+                alert('Фільм додано!');
+            } catch (e) {
+                console.error("Помилка збереження:", e);
+                alert("Помилка: " + e.message);
+            }
         };
 
         window.deleteMovie = async (id) => {
@@ -632,7 +659,6 @@
             loadMovies();
         };
 
-        // Modal
         async function openModal(movie) {
             const modal = document.getElementById('movie-modal');
             
@@ -677,7 +703,6 @@
             if (e.target.id === 'add-modal') closeAddModal();
         });
 
-        // Close search results when clicking outside
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.search-container')) {
                 searchResults.style.display = 'none';
