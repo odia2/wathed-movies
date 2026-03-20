@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Movies</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f8fafc;
+            --accent: #8b5cf6;
+            --accent-hover: #7c3aed;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 40px;
+            background: rgba(15, 23, 42, 0.95);
+            border-bottom: 1px solid #334155;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo { font-size: 24px; font-weight: bold; color: var(--accent); }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            background: var(--accent);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .stats-bar {
+            display: flex;
+            gap: 20px;
+            padding: 15px 40px;
+            background: #1e293b;
+            margin: 20px 40px;
+            border-radius: 12px;
+        }
+
+        .stat-item { font-size: 14px; color: #94a3b8; }
+        .stat-value { font-size: 18px; font-weight: bold; color: var(--text-main); }
+
+        .libraries {
+            display: flex;
+            gap: 10px;
+            padding: 0 40px;
+            margin-bottom: 20px;
+        }
+
+        .lib-btn {
+            background: transparent;
+            border: 1px solid #334155;
+            color: #94a3b8;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .lib-btn.active, .lib-btn:hover {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        .movie-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 40px;
+        }
+
+        .movie-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: transform 0.2s;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .movie-card:hover { transform: translateY(-5px); }
+
+        .poster {
+            width: 100%;
+            height: 300px;
+            object-fit: cover;
+            background: #0f172a;
+        }
+
+        .card-info { padding: 15px; }
+        .title { font-size: 16px; font-weight: bold; margin-bottom: 5px; }
+        .year { font-size: 12px; color: #94a3b8; }
+        .rating { color: #fbbf24; margin-top: 5px; }
+
+        .comment-toggle {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            border: none;
+            color: white;
+            cursor: pointer;
+            border-radius: 4px;
+            padding: 2px 8px;
+            font-size: 12px;
+        }
+
+        .comment-box {
+            display: none;
+            background: #0f172a;
+            padding: 10px;
+            font-size: 12px;
+            color: #cbd5e1;
+            border-top: 1px solid #334155;
+        }
+
+        .comment-box.show { display: block; }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 1000;
+            overflow-y: auto;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            max-width: 900px;
+            margin: 40px auto;
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        .modal-header {
+            display: flex;
+            gap: 30px;
+            padding: 30px;
+        }
+
+        .modal-poster {
+            width: 300px;
+            border-radius: 12px;
+        }
+
+        .modal-info { flex: 1; }
+        .modal-title { font-size: 28px; font-weight: bold; margin-bottom: 10px; }
+        .modal-meta { color: #94a3b8; margin-bottom: 20px; }
+        .modal-overview { line-height: 1.6; margin-bottom: 20px; }
+        .modal-rating { font-size: 20px; color: #fbbf24; }
+
+        .modal-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 30px;
+            cursor: pointer;
+        }
+
+        .user-comment-section {
+            padding: 20px 30px;
+            border-top: 1px solid #334155;
+        }
+
+        .user-comment-section h3 { margin-bottom: 10px; color: var(--accent); }
+        .user-comment-text { color: #cbd5e1; line-height: 1.5; }
+
+        #login-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .login-box {
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            width: 300px;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: white;
+            border-radius: 6px;
+        }
+
+        button.primary {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="login-modal">
+        <div class="login-box">
+            <h2>Вхід</h2>
+            <input type="email" id="email" placeholder="Email">
+            <input type="password" id="password" placeholder="Пароль">
+            <button class="primary" onclick="login()">Увійти</button>
+            <p style="font-size:12px; color:#94a3b8; margin-top:10px;">Тільки для своїх</p>
+        </div>
+    </div>
+
+    <header>
+        <div class="logo">MY MOVIES</div>
+        <div class="user-profile" onclick="logout()">
+            <span id="user-email">Гість</span>
+            <div class="avatar">U</div>
+        </div>
+    </header>
+
+    <div class="stats-bar">
+        <div class="stat-item">Всього: <span class="stat-value" id="stat-total">0</span></div>
+        <div class="stat-item">Середня оцінка: <span class="stat-value" id="stat-avg">0</span></div>
+        <div class="stat-item">Улюблений жанр: <span class="stat-value" id="stat-genre">-</span></div>
+    </div>
+
+    <div class="libraries">
+        <button class="lib-btn active">Всі фільми</button>
+        <button class="lib-btn">Хочу подивитись</button>
+        <button class="lib-btn">Улюблені </button>
+    </div>
+
+    <div class="movie-grid" id="movie-grid"></div>
+
+    <div class="modal-overlay" id="movie-modal">
+        <button class="modal-close" onclick="closeModal()">×</button>
+        <div class="modal-content">
+            <div class="modal-header">
+                <img class="modal-poster" id="modal-poster" src="" alt="">
+                <div class="modal-info">
+                    <h1 class="modal-title" id="modal-title"></h1>
+                    <p class="modal-meta" id="modal-meta"></p>
+                    <p class="modal-overview" id="modal-overview"></p>
+                    <p class="modal-rating" id="modal-rating"></p>
+                </div>
+            </div>
+            <div class="user-comment-section">
+                <h3>Мій коментар</h3>
+                <p class="user-comment-text" id="modal-comment"></p>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+        import { getFirestore } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCgkpCnK2QjMCE6HLwPBzJrnsaYRDr3YBc",
+            authDomain: "wathed-movies.firebaseapp.com",
+            projectId: "wathed-movies",
+            storageBucket: "wathed-movies.firebasestorage.app",
+            messagingSenderId: "54824906865",
+            appId: "1:54824906865:web:58f419a6824aae41f6abd0",
+            measurementId: "G-K153BLFVSW"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        const TMDB_KEY = "e58d0bd8f6cdc8a3a80354d83e044fe4";
+
+        let allMovies = [];
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                document.getElementById('login-modal').style.display = 'none';
+                document.getElementById('user-email').innerText = user.email;
+                loadMovies();
+            } else {
+                document.getElementById('login-modal').style.display = 'flex';
+                document.getElementById('movie-grid').innerHTML = '';
+            }
+        });
+
+        window.login = async () => {
+            const email = document.getElementById('email').value;
+            const pass = document.getElementById('password').value;
+            try {
+                await signInWithEmailAndPassword(auth, email, pass);
+            } catch (e) {
+                alert("Помилка: " + e.message);
+            }
+        };
+
+        window.logout = () => signOut(auth);
+
+        async function loadMovies() {
+            const grid = document.getElementById('movie-grid');
+            grid.innerHTML = '<div style="color:#94a3b8">Завантаження...</div>';
+
+            allMovies = [
+                {
+                    tmdb_id: 278,
+                    title: "Втеча з Шоушенка",
+                    year: "1994",
+                    poster: "https://image.tmdb.org/t/p/w500/q6y0Go1tsGEsmtFryDOJo3dEmqu.jpg",
+                    rating: "10/10",
+                    comment: "Найкращий фільм ever",
+                    genre: "Драма"
+                },
+                {
+                    tmdb_id: 680,
+                    title: "Термінатор 2",
+                    year: "1991",
+                    poster: "https://image.tmdb.org/t/p/w500/5M0j0B18abtBI5gi2RhfjjurTqb.jpg",
+                    rating: "10/10",
+                    comment: "Шварц - легенда",
+                    genre: "Бойовик"
+                }
+            ];
+
+            renderMovies(allMovies);
+            updateStats();
+        }
+
+        function renderMovies(movies) {
+            const grid = document.getElementById('movie-grid');
+            grid.innerHTML = '';
+
+            movies.forEach(movie => {
+                const card = document.createElement('div');
+                card.className = 'movie-card';
+                card.onclick = () => openModal(movie);
+
+                card.innerHTML = `
+                    <button class="comment-toggle" onclick="event.stopPropagation(); this.nextElementSibling.classList.toggle('show')">‹</button>
+                    <img src="${movie.poster}" class="poster" alt="${movie.title}">
+                    <div class="card-info">
+                        <div class="title">${movie.title}</div>
+                        <div class="year">${movie.year}</div>
+                        <div class="rating">⭐ ${movie.rating}</div>
+                    </div>
+                    <div class="comment-box">${movie.comment}</div>
+                `;
+
+                grid.appendChild(card);
+            });
+        }
+
+        async function openModal(movie) {
+            const modal = document.getElementById('movie-modal');
+            
+            document.getElementById('modal-title').innerText = movie.title;
+            document.getElementById('modal-poster').src = movie.poster;
+            document.getElementById('modal-meta').innerText = `${movie.year} • ${movie.genre}`;
+            document.getElementById('modal-rating').innerText = `Твоя оцінка: ${movie.rating}`;
+            document.getElementById('modal-comment').innerText = movie.comment || "Немає коментаря";
+
+            try {
+                const res = await fetch(`https://api.themoviedb.org/3/movie/${movie.tmdb_id}?api_key=${TMDB_KEY}&language=ru-RU`);
+                const data = await res.json();
+                document.getElementById('modal-overview').innerText = data.overview || "Опис відсутній";
+            } catch (e) {
+                document.getElementById('modal-overview').innerText = "Не вдалося завантажити опис";
+            }
+
+            modal.style.display = 'block';
+        }
+
+        window.closeModal = () => {
+            document.getElementById('movie-modal').style.display = 'none';
+        };
+
+        function updateStats() {
+            document.getElementById('stat-total').innerText = allMovies.length;
+            
+            const avg = allMovies.reduce((sum, m) => {
+                const num = parseFloat(m.rating);
+                return sum + (isNaN(num) ? 0 : num);
+            }, 0) / allMovies.length;
+            document.getElementById('stat-avg').innerText = avg.toFixed(1);
+
+            document.getElementById('stat-genre').innerText = "Бойовик";
+        }
+
+        document.getElementById('movie-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'movie-modal') closeModal();
+        });
+    </script>
+</body>
+</html>
