@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Movies</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0f0a1a;--hd:#0a0612;--s1:#1b1428;--s2:#261d38;--line:#3a2f52;--tx:#f5f0ff;--mut:#a99fc0;--ac:#8b5cf6;--ac2:#b39bfa;--star:#f5c518;--ok:#4fd1b5;--sans:'Roboto','Segoe UI',system-ui,sans-serif}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--tx);font-family:var(--sans);min-height:100vh}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+:focus-visible{outline:2px solid var(--star);outline-offset:2px}
+header{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:16px;padding:9px clamp(16px,4vw,48px);background:var(--hd);border-bottom:1px solid var(--line)}
+.logo{background:var(--ac);color:#fff;font-weight:900;font-size:19px;padding:3px 10px;border-radius:5px;letter-spacing:.5px;white-space:nowrap}
+.search{flex:1;max-width:620px;margin:0 auto;position:relative}
+.search input{width:100%;padding:10px 14px;background:#f3eeff;color:#1a1128;border:0;border-radius:6px;font-size:15px}
+.search input::placeholder{color:#6b5f85}
+.results{position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--s1);border:1px solid var(--line);border-radius:8px;max-height:380px;overflow:auto;display:none;box-shadow:0 20px 40px #000a}
+.res{display:flex;gap:12px;align-items:center;padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--line)}
+.res:hover{background:var(--s2)}
+.res img{width:38px;height:56px;object-fit:cover;border-radius:3px;background:var(--s2)}
+.res small{color:var(--mut)}
+.user{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--mut)}
+.av{width:34px;height:34px;border-radius:50%;background:var(--ac);color:#fff;display:grid;place-items:center;font-weight:700}
+.out{padding:7px 12px;border-radius:6px;background:var(--s1);font-size:13px}
+main{padding:28px clamp(16px,4vw,48px) 60px;max-width:1360px;margin:0 auto}
+.sec{font-size:26px;font-weight:700;border-left:4px solid var(--ac);padding-left:12px;margin-bottom:18px;line-height:1.2}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:1px;background:var(--line);border-radius:8px;overflow:hidden;margin-bottom:22px}
+.stat{background:var(--s1);padding:14px 16px;color:var(--mut);font-size:13px}
+.stat b{display:block;font-size:28px;font-weight:700;color:var(--tx);line-height:1.2}
+.stat.ok b{color:var(--ok)}.stat.gold b{color:var(--star)}
+.bar{display:flex;gap:10px;align-items:center;margin-bottom:22px;flex-wrap:wrap}
+.tabs{display:flex;gap:8px;overflow-x:auto;flex:1;padding-bottom:4px;scrollbar-width:none}
+.tab{padding:7px 14px;border-radius:999px;border:1px solid var(--line);color:var(--tx);white-space:nowrap;font-size:14px}
+.tab span{opacity:.6;margin-left:6px}
+.tab:hover{background:var(--s2)}
+.tab.on{background:var(--ac);border-color:var(--ac);color:#fff}
+select,.btn{padding:8px 14px;background:var(--s1);border:1px solid var(--line);border-radius:6px;font-size:14px}
+.btn:hover,select:hover{background:var(--s2)}
+.btn.red{background:var(--ac);border-color:var(--ac);color:#fff;font-weight:700}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px}
+.card{background:var(--s1);border-radius:8px;overflow:hidden;cursor:pointer;display:flex;flex-direction:column;border:1px solid transparent}
+.card:hover{border-color:var(--line)}
+.pw{position:relative;aspect-ratio:2/3;background:var(--s2);flex:none}
+.pw img{width:100%;height:100%;object-fit:cover;display:block}
+.card.w .pw img{filter:saturate(.75) brightness(.9)}
+.bm{position:absolute;top:0;left:8px;width:28px;height:38px;background:var(--ac);clip-path:polygon(0 0,100% 0,100% 100%,50% 78%,0 100%)}
+.chk{position:absolute;top:8px;right:8px;width:24px;height:24px;border-radius:50%;background:var(--ok);color:#06231c;display:grid;place-items:center;font-size:13px;font-weight:800}
+.acts{position:absolute;inset:auto 0 0 0;display:flex;justify-content:center;gap:6px;padding:26px 6px 8px;background:linear-gradient(transparent,#000d);opacity:0;transition:.15s}
+.card:hover .acts,.acts:focus-within{opacity:1}
+@media(hover:none){.acts{opacity:1}}
+.ic{width:32px;height:32px;border-radius:50%;background:#fff2;font-size:14px;display:grid;place-items:center}
+.ic:hover{background:#fff4}.ic.on{background:var(--tx);color:var(--bg)}.ic.del:hover{background:#dc2626}
+.ci{padding:12px;display:flex;flex-direction:column;gap:3px;flex:1}
+.rt{display:flex;align-items:center;gap:5px;font-size:15px;font-weight:500}
+.rt.no{color:var(--mut);font-size:13px}
+.star{color:var(--star)}
+.tt{font-weight:500;font-size:16px;line-height:1.3;margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.yr{color:var(--mut);font-size:13px}
+.cm{display:none;color:#cfc6e3;font-size:14px;line-height:1.5;margin-top:8px}
+.wbtn{margin-top:auto;padding:9px;border-radius:6px;background:#33265a;color:var(--ac2);font-weight:700;font-size:14px;width:100%}
+.ci .yr+.wbtn,.ci .rt+.tt+.yr+.wbtn{margin-top:12px}
+.wbtn:hover{background:#40307a}.wbtn.on{background:var(--ok);color:#06231c}
+.grid.list{grid-template-columns:1fr;gap:10px}
+.grid.list .card{flex-direction:row}
+.grid.list .pw{width:120px}
+.grid.list .cm{display:block}
+.grid.list .tt{-webkit-line-clamp:unset;font-size:18px}
+.grid.list .wbtn{width:auto;align-self:flex-start;padding:7px 16px;margin-top:12px}
+.grid.list .ic{width:26px;height:26px;font-size:12px}
+.empty{grid-column:1/-1;text-align:center;color:var(--mut);padding:60px 0}
+.back{position:fixed;inset:0;background:#000b;z-index:200;display:none;overflow-y:auto;padding:24px 12px}
+.sheet{position:relative;max-width:880px;margin:0 auto;background:var(--s1);border-radius:12px;overflow:hidden}
+.x{position:absolute;top:12px;right:14px;z-index:2;width:38px;height:38px;border-radius:50%;background:#000a;font-size:22px}
+.bd{height:180px;background:var(--s2) center/cover;position:relative}
+.bd:after{content:'';position:absolute;inset:0;background:linear-gradient(transparent 30%,var(--s1))}
+.mh{display:flex;gap:28px;padding:0 28px 28px;margin-top:-90px;position:relative;z-index:1}
+.mh>img{width:220px;height:330px;object-fit:cover;border-radius:8px;box-shadow:0 12px 30px #000a;flex:none;background:var(--s2)}
+.mi{flex:1;padding-top:96px;min-width:0}
+.mi h2{font-size:30px;line-height:1.15;margin-bottom:6px;font-weight:700}
+.meta{color:var(--mut);font-size:14px;margin-bottom:14px}
+.over{line-height:1.65;font-size:15px;margin-bottom:18px;max-width:62ch}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.box{background:var(--bg);border-radius:8px;padding:14px;margin-top:14px}
+.box h3{font-size:13px;color:var(--mut);margin-bottom:10px;font-weight:500}
+.prov{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;background:var(--s2);border-radius:6px;color:var(--tx);text-decoration:none;font-size:13px;margin:0 6px 6px 0}
+.prov img{width:22px;height:22px;border-radius:5px}
+.trailer iframe{width:100%;aspect-ratio:16/9;border:0;border-radius:8px;margin-bottom:14px}
+input,textarea{width:100%;padding:10px 12px;background:var(--bg);border:1px solid var(--line);border-radius:6px}
+textarea{min-height:80px;resize:vertical}
+label.f{display:block;color:var(--mut);font-size:13px;margin:12px 0 6px}
+label.ck{display:flex;gap:8px;align-items:center;cursor:pointer;margin:8px 0}
+label.ck input{width:auto;accent-color:var(--ac)}
+.dlg{max-width:440px;margin:8vh auto;background:var(--s1);padding:26px;border-radius:12px}
+.dlg h2{margin-bottom:8px}
+.gap{display:flex;gap:10px;margin-top:18px}.gap>*{flex:1}
+#login{display:none;place-items:center}
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--tx);color:var(--bg);padding:12px 20px;border-radius:8px;font-weight:600;z-index:400;transition:.25s;pointer-events:none}
+#toast.show{transform:translateX(-50%)}
+@media(max-width:640px){.user span{display:none}.logo{font-size:16px}.sec{font-size:22px}.mh{flex-direction:column;align-items:center;margin-top:-70px}.mi{padding-top:0;width:100%}.mh>img{width:150px;height:225px}.grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}.grid.list .pw{width:96px}.grid.list .ic{display:none}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="back" id="login"><div class="dlg">
+<h2>Вхід</h2><p class="meta">Тільки для своїх</p>
+<input type="email" id="email" placeholder="Email" autocomplete="username">
+<input type="password" id="password" placeholder="Пароль" autocomplete="current-password" style="margin-top:10px">
+<div class="gap"><button class="btn red" id="do-login">Увійти</button></div>
+</div></div>
+
+<header>
+<div class="logo">MY MOVIES</div>
+<div class="search"><input id="q" placeholder="Знайти фільм або серіал, щоб додати…" autocomplete="off"><div class="results" id="results"></div></div>
+<div class="user"><span id="uemail"></span><div class="av" id="uav">?</div><button class="out" id="logout">Вийти</button></div>
+</header>
+
+<main>
+<h1 class="sec">Моя бібліотека</h1>
+<div class="stats">
+<div class="stat">Всього<b id="s-all">0</b></div>
+<div class="stat">Фільми<b id="s-mov">0</b></div>
+<div class="stat">Серіали<b id="s-tv">0</b></div>
+<div class="stat ok">Подивився<b id="s-w">0</b></div>
+<div class="stat gold">Середня оцінка<b id="s-avg">0</b></div>
+</div>
+<div class="bar">
+<div class="tabs" id="tabs"></div>
+<button class="btn" id="view">☰ Список</button>
+<button class="btn" id="rand">🎲 Що подивитись?</button>
+<select id="sort">
+<option value="new">Спочатку нові</option>
+<option value="rd">Оцінка ↓</option>
+<option value="ra">Оцінка ↑</option>
+<option value="yd">Рік ↓</option>
+<option value="ya">Рік ↑</option>
+<option value="t">Назва А–Я</option>
+</select>
+</div>
+<div class="grid" id="grid"><div class="empty">Завантаження…</div></div>
+</main>
+
+<div class="back" id="modal"><div class="sheet">
+<button class="x" id="mx" aria-label="Закрити">×</button>
+<div class="bd" id="m-bd"></div>
+<div class="mh"><img id="m-poster" alt="">
+<div class="mi">
+<h2 id="m-title"></h2><p class="meta" id="m-meta"></p>
+<p class="over" id="m-over"></p>
+<div class="row"><button class="btn" id="m-trailer">▶ Трейлер</button><button class="btn" id="m-watch"></button></div>
+<div class="trailer" id="m-tbox"></div>
+<div class="box" id="m-prov" style="display:none"><h3>Де подивитись в Україні</h3><div id="m-plist"></div></div>
+<div class="box" id="m-edit">
+<h3>Моя оцінка і коментар</h3>
+<input type="number" id="m-rate" min="0" max="13" step="0.1" placeholder="Оцінка з 10 (можна більше)">
+<textarea id="m-com" placeholder="Коментар" style="margin-top:10px"></textarea>
+<div class="gap"><button class="btn red" id="m-save">Зберегти</button></div>
+</div>
+<div class="box" id="m-ro"><h3>Мій коментар</h3><p id="m-comment"></p></div>
+</div></div>
+</div></div>
+
+<div class="back" id="add"><div class="dlg">
+<h2 id="a-title"></h2><p class="meta" id="a-meta"></p>
+<label class="ck"><input type="checkbox" id="a-w"> Вже подивився</label>
+<div id="a-rw" style="display:none"><label class="f">Оцінка</label><input type="number" id="a-rate" min="0" max="13" step="0.1" placeholder="Наприклад 8.5"></div>
+<label class="ck"><input type="checkbox" id="a-wl" checked> Хочу подивитись</label>
+<label class="ck"><input type="checkbox" id="a-fav"> Улюблені</label>
+<label class="f">Коментар</label><textarea id="a-com" placeholder="Необов'язково"></textarea>
+<div class="gap"><button class="btn" id="a-cancel">Скасувати</button><button class="btn red" id="a-save">Додати</button></div>
+</div></div>
+<div id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+
+const app = initializeApp({
+  apiKey: "AIzaSyCgkpCnK2QjMCE6HLwPBzJrnsaYRDr3YBc",
+  authDomain: "wathed-movies.firebaseapp.com",
+  projectId: "wathed-movies",
+  storageBucket: "wathed-movies.firebasestorage.app",
+  messagingSenderId: "54824906865",
+  appId: "1:54824906865:web:58f419a6824aae41f6abd0",
+  measurementId: "G-K153BLFVSW"
+});
+const auth = getAuth(app), db = getFirestore(app);
+const TMDB = "e58d0bd8f6cdc8a3a80354d83e044fe4", ADMIN = "bogdan17261726@gmail.com";
+const IMG = "https://image.tmdb.org/t/p/";
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let movies = [], admin = false, user = null, filter = 'all', sort = 'new', cur = null, pending = null, view = 'grid';
+
+const TABS = [['all','Всі'],['watched','Подивився'],['watchlist','Хочу подивитись'],['favorites','Улюблені'],['movie','Фільми'],['tv','Серіали']];
+const isMovie = m => !m.type || m.type === 'movie';
+const inLib = (m, l) => l === 'all' ? true : l === 'watched' ? m.watched === true : l === 'movie' ? isMovie(m) : l === 'tv' ? m.type === 'tv' : !!m.libraries?.includes(l);
+const num = r => { if (!r || r === 'N/A') return -1; const n = parseFloat(r); return isNaN(n) ? -1 : n; };
+const ratingStr = v => { const n = parseFloat(v); return isNaN(n) ? 'N/A' : `${n}/10`; };
+
+let tt;
+function toast(t) { const e = $('#toast'); e.textContent = t; e.classList.add('show'); clearTimeout(tt); tt = setTimeout(() => e.classList.remove('show'), 2400); }
+const show = (id, d = 'block') => $(id).style.display = d;
+const hide = id => $(id).style.display = 'none';
+
+onAuthStateChanged(auth, u => {
+  user = u; admin = !!u && u.email === ADMIN;
+  if (u) {
+    hide('#login'); $('#uemail').textContent = u.email; $('#uav').textContent = u.email[0].toUpperCase();
+    $('.search').style.visibility = admin ? 'visible' : 'hidden';
+    load();
+  } else { show('#login', 'grid'); $('#grid').innerHTML = ''; }
+});
+const doLogin = async () => {
+  try { await signInWithEmailAndPassword(auth, $('#email').value, $('#password').value); }
+  catch (e) { toast('Помилка входу: ' + e.message); }
+};
+$('#do-login').onclick = doLogin;
+$('#password').onkeydown = e => e.key === 'Enter' && doLogin();
+$('#logout').onclick = () => signOut(auth);
+
+async function load() {
+  try {
+    const snap = await getDocs(collection(db, "movies"));
+    movies = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    render();
+  } catch (e) { toast('Не вдалося завантажити: ' + e.message); }
+}
+
+function sorted(list) {
+  const a = [...list];
+  const f = {
+    new: (x, y) => (y.createdAt || '').localeCompare(x.createdAt || ''),
+    rd: (x, y) => num(y.rating) - num(x.rating), ra: (x, y) => num(x.rating) - num(y.rating),
+    yd: (x, y) => (y.year || 0) - (x.year || 0), ya: (x, y) => (x.year || 0) - (y.year || 0),
+    t: (x, y) => (x.title || '').localeCompare(y.title || '')
+  }[sort];
+  return a.sort(f);
+}
+
+function render() {
+  $('#tabs').innerHTML = TABS.map(([k, n]) =>
+    `<button class="tab ${k === filter ? 'on' : ''}" data-tab="${k}">${n}<span>${movies.filter(m => inLib(m, k)).length}</span></button>`).join('');
+  const list = sorted(movies.filter(m => inLib(m, filter)));
+  $('#grid').className = 'grid ' + view;
+  $('#grid').innerHTML = list.length ? list.map(m => {
+    const r = num(m.rating), fav = m.libraries?.includes('favorites'), wl = m.libraries?.includes('watchlist');
+    return `<article class="card ${m.watched ? 'w' : ''}" data-id="${m.id}">
+<div class="pw"><img loading="lazy" src="${esc(m.poster) || ''}" alt="${esc(m.title)}">
+${wl ? '<span class="bm"></span>' : ''}${m.watched ? '<span class="chk">✓</span>' : ''}
+${admin ? `<div class="acts">
+<button class="ic ${wl ? 'on' : ''}" data-act="watchlist" title="Хочу подивитись">🔖</button>
+<button class="ic ${fav ? 'on' : ''}" data-act="favorites" title="Улюблені">★</button>
+<button class="ic del" data-act="del" title="Видалити">🗑</button></div>` : ''}
+</div><div class="ci"><div class="rt ${r >= 0 ? '' : 'no'}"><span class="star">${r >= 0 ? '★' : '☆'}</span>${r >= 0 ? esc(m.rating.split('/')[0]) : 'Без оцінки'}</div>
+<div class="tt">${esc(m.title)}</div><div class="yr">${esc(m.year)}${m.type === 'tv' ? ' · Серіал' : ''}</div>
+${m.comment ? `<p class="cm">${esc(m.comment)}</p>` : ''}
+${admin ? `<button class="wbtn ${m.watched ? 'on' : ''}" data-act="watch">${m.watched ? '✓ Подивився' : '+ Позначити'}</button>` : ''}</div></article>`;
+  }).join('') : '<div class="empty">Тут поки порожньо. Знайди фільм у пошуку зверху й додай його.</div>';
+  const rated = movies.map(m => num(m.rating)).filter(n => n > 0);
+  $('#s-all').textContent = movies.length;
+  $('#s-mov').textContent = movies.filter(isMovie).length;
+  $('#s-tv').textContent = movies.filter(m => m.type === 'tv').length;
+  $('#s-w').textContent = movies.filter(m => m.watched).length;
+  $('#s-avg').textContent = rated.length ? (rated.reduce((a, b) => a + b, 0) / rated.length).toFixed(1) : '—';
+}
+
+$('#tabs').onclick = e => { const b = e.target.closest('[data-tab]'); if (b) { filter = b.dataset.tab; render(); } };
+$('#sort').onchange = e => { sort = e.target.value; render(); };
+$('#rand').onclick = () => {
+  const pool = movies.filter(m => !m.watched);
+  if (!pool.length) return toast('Усе вже подивився 🎉');
+  openModal(pool[Math.floor(Math.random() * pool.length)]);
+};
+
+$('#grid').onclick = async e => {
+  const card = e.target.closest('.card'); if (!card) return;
+  const m = movies.find(x => x.id === card.dataset.id), b = e.target.closest('[data-act]');
+  if (!b) return openModal(m);
+  const a = b.dataset.act;
+  if (a === 'watch') await setWatched(m);
+  else if (a === 'del') { if (confirm(`Видалити «${m.title}» назавжди?`)) { await deleteDoc(doc(db, "movies", m.id)); movies = movies.filter(x => x !== m); render(); toast('Видалено'); } }
+  else await toggleLib(m, a);
+};
+
+async function toggleLib(m, lib) {
+  try {
+    let l = m.libraries || ['all'];
+    if (!l.includes('all')) l.push('all');
+    l = l.includes(lib) ? l.filter(x => x !== lib) : [...l, lib];
+    await updateDoc(doc(db, "movies", m.id), { libraries: l });
+    m.libraries = l; render();
+  } catch (e) { toast('Помилка: ' + e.message); }
+}
+async function setWatched(m) {
+  try {
+    const w = !m.watched, data = { watched: w };
+    if (w && m.libraries) { m.libraries = m.libraries.filter(l => l !== 'watchlist'); data.libraries = m.libraries; }
+    await updateDoc(doc(db, "movies", m.id), data);
+    m.watched = w; render(); toast(w ? 'Позначено як подивлений' : 'Позначено як не подивлений');
+  } catch (e) { toast('Помилка: ' + e.message); }
+}
+
+async function openModal(m) {
+  cur = m;
+  $('#m-poster').src = m.poster || ''; $('#m-title').textContent = m.title;
+  $('#m-meta').textContent = `${isMovie(m) ? 'Фільм' : 'Серіал'}, ${m.year}${num(m.rating) >= 0 ? ' · Моя оцінка ' + m.rating : ''}`;
+  $('#m-over').textContent = 'Завантаження опису…'; $('#m-bd').style.backgroundImage = '';
+  $('#m-tbox').innerHTML = ''; hide('#m-prov'); $('#m-plist').innerHTML = '';
+  syncWatchBtn();
+  $('#m-edit').style.display = admin ? 'block' : 'none';
+  $('#m-ro').style.display = admin ? 'none' : 'block';
+  $('#m-watch').style.display = admin ? '' : 'none';
+  $('#m-rate').value = num(m.rating) >= 0 ? num(m.rating) : ''; $('#m-com').value = m.comment || '';
+  $('#m-comment').textContent = m.comment || 'Немає коментаря';
+  show('#modal'); document.body.style.overflow = 'hidden'; $('#modal').scrollTop = 0;
+  const ep = isMovie(m) ? 'movie' : 'tv';
+  try {
+    const [d, p] = await Promise.all([
+      fetch(`https://api.themoviedb.org/3/${ep}/${m.tmdb_id}?api_key=${TMDB}&language=ru-RU&append_to_response=videos`).then(r => r.json()),
+      fetch(`https://api.themoviedb.org/3/${ep}/${m.tmdb_id}/watch/providers?api_key=${TMDB}`).then(r => r.json())
+    ]);
+    if (cur !== m) return;
+    $('#m-over').textContent = d.overview || 'Опис відсутній';
+    if (d.backdrop_path) $('#m-bd').style.backgroundImage = `url(${IMG}w780${d.backdrop_path})`;
+    cur.trailer = d.videos?.results?.find(v => v.type === 'Trailer' && v.site === 'YouTube')?.key || null;
+    const ua = p.results?.UA;
+    if (ua) {
+      const fl = ua.flatrate || [];
+      $('#m-plist').innerHTML = fl.length ? fl.map(x => `<a class="prov" target="_blank" rel="noopener" href="https://www.themoviedb.org/${ep}/${m.tmdb_id}"><img src="${IMG}w92${x.logo_path}" alt="">${esc(x.provider_name)}</a>`).join('') : '<span class="meta">Немає на стрімінгах в Україні</span>';
+      show('#m-prov');
+    }
+  } catch { $('#m-over').textContent = 'Не вдалося завантажити опис'; }
+}
+function syncWatchBtn() { const b = $('#m-watch'); b.textContent = cur.watched ? '✓ Подивився (скасувати)' : 'Позначити як подивлений'; b.style.background = cur.watched ? 'var(--ok)' : ''; b.style.color = cur.watched ? '#06231c' : ''; }
+function closeModal() { hide('#modal'); $('#m-tbox').innerHTML = ''; document.body.style.overflow = ''; cur = null; }
+$('#mx').onclick = closeModal;
+$('#modal').onclick = e => { if (e.target.id === 'modal') closeModal(); };
+$('#m-watch').onclick = async () => { await setWatched(cur); syncWatchBtn(); };
+$('#m-trailer').onclick = () => {
+  if (!cur.trailer) return toast('Трейлер не знайдено');
+  $('#m-tbox').innerHTML = `<iframe src="https://www.youtube.com/embed/${cur.trailer}?autoplay=1" allow="autoplay;fullscreen" allowfullscreen></iframe>`;
+};
+$('#m-save').onclick = async () => {
+  try {
+    const rating = ratingStr($('#m-rate').value), comment = $('#m-com').value;
+    await updateDoc(doc(db, "movies", cur.id), { rating, comment });
+    Object.assign(cur, { rating, comment }); render(); toast('Збережено');
+  } catch (e) { toast('Помилка: ' + e.message); }
+};
+
+$('#view').onclick = () => { view = view === 'grid' ? 'list' : 'grid'; $('#view').textContent = view === 'grid' ? '☰ Список' : '▦ Сітка'; render(); };
+
+let st;
+$('#q').oninput = e => {
+  clearTimeout(st);
+  const q = e.target.value.trim(), box = $('#results');
+  if (q.length < 2) return hide('#results');
+  st = setTimeout(async () => {
+    try {
+      const get = t => fetch(`https://api.themoviedb.org/3/search/${t}?api_key=${TMDB}&query=${encodeURIComponent(q)}&language=ru-RU`).then(r => r.json());
+      const [a, b] = await Promise.all([get('movie'), get('tv')]);
+      const all = [...a.results.map(x => ({ ...x, type: 'movie' })), ...b.results.map(x => ({ ...x, type: 'tv' }))].sort((x, y) => y.popularity - x.popularity).slice(0, 8);
+      box.innerHTML = all.length ? '' : '<div class="res">Нічого не знайдено</div>';
+      all.forEach(it => {
+        const el = document.createElement('div'); el.className = 'res';
+        const yr = (it.type === 'tv' ? it.first_air_date : it.release_date)?.slice(0, 4) || '—';
+        el.innerHTML = `<img src="${it.poster_path ? IMG + 'w92' + it.poster_path : ''}" alt=""><div><b>${esc(it.title || it.name)}</b><br><small>${it.type === 'tv' ? 'Серіал' : 'Фільм'}, ${yr}</small></div>`;
+        el.onclick = () => openAdd(it, yr);
+        box.appendChild(el);
+      });
+      show('#results');
+    } catch { toast('Пошук не спрацював'); }
+  }, 300);
+};
+
+function openAdd(it, yr) {
+  pending = { tmdb_id: String(it.id), type: it.type, title: it.title || it.name, year: yr, poster: it.poster_path ? IMG + 'w500' + it.poster_path : '' };
+  $('#a-title').textContent = pending.title; $('#a-meta').textContent = `${it.type === 'tv' ? 'Серіал' : 'Фільм'}, ${yr}`;
+  $('#a-w').checked = false; hide('#a-rw'); $('#a-rate').value = ''; $('#a-wl').checked = true; $('#a-fav').checked = false; $('#a-com').value = '';
+  show('#add'); hide('#results'); $('#q').value = '';
+}
+$('#a-w').onchange = e => { e.target.checked ? show('#a-rw') : hide('#a-rw'); if (e.target.checked) $('#a-wl').checked = false; };
+$('#a-cancel').onclick = () => hide('#add');
+$('#a-save').onclick = async () => {
+  try {
+    const libraries = ['all'];
+    if ($('#a-wl').checked) libraries.push('watchlist');
+    if ($('#a-fav').checked) libraries.push('favorites');
+    const watched = $('#a-w').checked;
+    await addDoc(collection(db, "movies"), { ...pending, rating: watched ? ratingStr($('#a-rate').value) : 'N/A', comment: $('#a-com').value, watched, libraries, genre: 'Не вказано', addedBy: user.email, createdAt: new Date().toISOString() });
+    hide('#add'); await load(); toast('Додано');
+  } catch (e) { toast('Помилка: ' + e.message); }
+};
+$('#add').onclick = e => { if (e.target.id === 'add') hide('#add'); };
+document.addEventListener('click', e => { if (!e.target.closest('.search')) hide('#results'); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); hide('#add'); } });
+</script>
+</body>
+</html>
